@@ -114,8 +114,9 @@ install:
 	fi;
 	$(ECHO) "$(GREEN)✓ Installation complete$(RESET)";
 # Run the main program.
+# $(PYTHON) $(NAME) $(ARGV)
 run:
-	$(PYTHON) $(NAME) $(ARGV)
+	uv run python -m src $(ARGV)
 
 # Run the program with debugger.
 debug:
