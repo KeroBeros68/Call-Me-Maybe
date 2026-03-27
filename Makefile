@@ -46,7 +46,7 @@ MYPY := $(VENV)/bin/mypy
 .PHONY: help install run debug lint lint-strict clean fclean re \
 		st add _commit push_feat push_fix push_refactor \
 		push_docs push_style push_chore test version \
-		bump-patch bump-minor bump-major push_release
+		bump-patch bump-minor bump-major push_release push_test
 
 # **************************************************************************** #
 #									Help								  	   #
@@ -83,6 +83,10 @@ help:
 	$(ECHO) "  make push_docs M='...'    Commit + push (type: docs)"
 	$(ECHO) "  make push_style M='...'   Commit + push (type: style)"
 	$(ECHO) "  make push_chore M='...'   Commit + push (type: chore)"
+	$(ECHO) "  make push_test M='...'    Commit + push (type: test)"
+	$(ECHO) "  make push_release M='...' Commit + push (type: feat + bump major)"
+	$(ECHO) ""
+	$(ECHO) "$(CYAN)  🏷 Versioning$(RESET)"
 
 # **************************************************************************** #
 #									Rules									   #
@@ -250,6 +254,10 @@ push_style:
 # Commit and push maintenance changes.
 push_chore:
 	$(MAKE) test && $(MAKE) _commit TYPE=chore M="$(M)"
+
+# Commit and push test changes.
+push_test:
+	$(MAKE) test && $(MAKE) _commit TYPE=test M="$(M)"
 
 
 # ###		VERSIONNING RULES 		### #

@@ -32,5 +32,5 @@ class JSONLoader(BaseLoader):
         try:
             with open(path) as f:
                 return json.load(f)
-        except (FileNotFoundError, PermissionError):
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError):
             raise
