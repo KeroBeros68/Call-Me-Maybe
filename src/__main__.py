@@ -1,22 +1,25 @@
-
-# TERMINAL: list[str] = ["gnome-terminal", "--"]
 import logging
 import os
 import subprocess
 import sys
 import time
 
-from FileLoader import FileLoader
-from utils.check_env import RunSecurity, RunEnvironmentError
-from utils.logger.Logger import setup_logger
+from src.utils import PausingArgumentParser
 
+from src.utils.FileLoader.JSONLoader import JSONLoader
+from src.utils.RunSecurity import RunSecurity, RunEnvironmentError
+from src.utils.Logger.Logger import setup_logger
 
-TERMINAL: list[str] = ["konsole", "-e"]
+TERMINAL: list[str] = ["gnome-terminal", "--"]
+# TERMINAL: list[str] = ["konsole", "-e"]
+
+PROG_NAME: str = "Call Me Maybe"
+PROG_DESCRIPTION: str = "What the program does"  # a faire
+PROG_HELP: str = "Text at the bottom of help"  # a faire
 
 
 def main() -> None:
-    logger = logging.getLogger("Call-Me-Maybe")
-
+    logger = logging.getLogger(PROG_NAME)
     secure_env = RunSecurity()
     try:
         secure_env.check_process()
@@ -33,10 +36,12 @@ def main() -> None:
         return
 
     try:
-        from Controller import Controller, ControllerError
+        from .Controller import Controller, ControllerError
 
         controller = Controller(
-            FileLoader(),
+            logger,
+            PausingArgumentParser(PROG_NAME, PROG_DESCRIPTION, PROG_HELP),
+            JSONLoader(logger),
         )
         controller.process()
 
@@ -44,19 +49,20 @@ def main() -> None:
         pass
     except Exception as e:
         logger.error(e)
-        input("\n\nPress Enter to exit...")
-        return
+    input("\n\nPress Enter to exit...")
+    return
 
 
 if __name__ == "__main__":
     if "--child" not in sys.argv and "--gui" not in sys.argv:
-        args = [sys.executable, sys.argv[0], "--child"] + sys.argv[1:]
+        args = [sys.executable, "-m", "src", "--child"] + sys.argv[1:]
         subprocess.Popen(
             [TERMINAL[0], TERMINAL[1]] + args,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         )
         os._exit(0)
-    setup_logger("Call-Me-Maybe")
+    setup_logger(PROG_NAME)
     main()

@@ -1,6 +1,7 @@
-import logging
+import argparse
+from logging import Logger
 
-from FileLoader import FileLoader
+from .utils.FileLoader.BaseLoader import BaseLoader
 
 
 class ControllerError(Exception):
@@ -34,7 +35,9 @@ class Controller():
 
     def __init__(
         self,
-        reader: FileLoader,
+        logger: Logger,
+        parser: argparse.ArgumentParser,
+        reader: BaseLoader,
     ) -> None:
         """
         Initializes the Controller with its required dependencies.
@@ -43,14 +46,17 @@ class Controller():
             reader (FileLoader): Used to read JSON files from disk.
         """
         super().__init__()
-        self.logger = logging.getLogger("Call-Me-Maybe")
-        self.reader: FileLoader = reader
+        self.logger: Logger = logger
+        self.parser: argparse.ArgumentParser = parser
+        self.reader: BaseLoader = reader
 
     def process(self) -> None:
         """
         Executes the main controller flow.
         """
         self.logger.info("Programm starting")
+        arg = self.parser.parse_args()
+        print(arg)
 
     def exit_program(self) -> None:
         """

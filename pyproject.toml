@@ -1,6 +1,6 @@
 [project]
 name = "call-me-maybe"
-version = "0.1.0"
+version = "0.2.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -8,7 +8,9 @@ dependencies = [
     "torch>=2.0.0",
     "transformers>=4.40.0",
     "huggingface-hub>=0.20.0",
-    ]
+    "pydantic>=2.12.5",
+    "python-magic>=0.4.27",
+]
 
 [dependency-groups]
 dev = [
@@ -16,3 +18,9 @@ dev = [
     "mypy>=1.19.1",
     "pytest>=9.0.2",
 ]
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
