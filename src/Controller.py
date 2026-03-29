@@ -56,7 +56,13 @@ class Controller():
         """
         self.logger.info("Programm starting")
         arg = self.parser.parse_args()
-        print(arg)
+        self.logger.info(f"Inline ARG: {arg}")
+        functions_definition = arg.functions_definition
+        input_files = arg.input
+        output_files = arg.output
+        print(functions_definition)
+        print(input_files)
+        print(output_files)
 
     def exit_program(self) -> None:
         """
