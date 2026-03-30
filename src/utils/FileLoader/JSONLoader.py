@@ -27,7 +27,7 @@ class JSONLoader(BaseLoader):
             PermissionError: If the file cannot be read due to permissions.
         """
         self.logger.info(f"File to open and read: '{path}'")
-        if not self.check_type(path, "JSON"):
+        if not self.check_type(path, "application/JSON"):
             raise LoaderException("ERROR: Invalide MIME type")
         try:
             with open(path) as f:

@@ -1,7 +1,3 @@
-from argparse import ArgumentError
-
-import pytest
-
 from src.utils.PausingArgumentParser.PausingArgumentParser import (
     PausingArgumentParser,
 )
