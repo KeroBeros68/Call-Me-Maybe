@@ -63,6 +63,7 @@ class Controller():
         print(functions_definition)
         print(input_files)
         print(output_files)
+        self.reader.read_file(arg.functions_definition)
 
     def exit_program(self) -> None:
         """

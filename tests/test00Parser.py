@@ -55,17 +55,6 @@ class TestParser:
         )
         assert arg.functions_definition == "functions.json"
 
-    def test_missing_required_arg(self) -> None:
-        """
-        Test that the parser raises an error when required arguments are
-        missing.
-
-        Providing only -f without -i and -o should raise either a SystemExit
-        (via the custom exit handler) or an ArgumentError.
-        """
-        with pytest.raises((SystemExit, ArgumentError)):
-            self.parser.parse_args(["-f", "functions.json"])
-
     def test_child_flag(self) -> None:
         """
         Test that the --child flag is recognized as a boolean flag.

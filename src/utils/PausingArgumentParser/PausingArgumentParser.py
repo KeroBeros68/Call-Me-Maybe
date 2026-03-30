@@ -16,6 +16,16 @@ class PausingArgumentParser(argparse.ArgumentParser):
             "--child", action="store_true", help=argparse.SUPPRESS
         )
         self.add_argument("--gui", action="store_true", help=argparse.SUPPRESS)
-        self.add_argument("-f", "--functions_definition", required=True)
-        self.add_argument("-i", "--input", required=True)
-        self.add_argument("-o", "--output", required=True)
+        self.add_argument(
+            "-f",
+            "--functions_definition",
+            default="data/input/functions_definition.json",
+        )
+        self.add_argument(
+            "-i",
+            "--input",
+            default="data/input/functions_calling_tests.json",
+        )
+        self.add_argument(
+            "-o", "--output", default="data/input/output.json"
+        )
