@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.utils.FileLoader.BaseLoader import LoaderException
 from src.utils.FileLoader.JSONLoader import JSONLoader
 
 
@@ -67,7 +66,8 @@ class TestJSONLoader:
 
     def test_invalid_mime_type(self, tmp_path) -> None:
         """
-        Test that a file with an invalid MIME type raises a json.JSONDecodeError.
+        Test that a file with an invalid MIME type raises a
+        json.JSONDecodeError.
         """
         file = tmp_path / "bad.txt"
         file.write_text("not valid json {{{")
