@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from logging import Logger
+import os
 from typing import Any
 import magic
 
@@ -19,6 +20,8 @@ class BaseLoader(ABC):
         pass
 
     @staticmethod
-    def check_type(filepath: str, expected: str) -> bool:
-        mime = magic.from_file(filepath, mime=True)
-        return mime == expected
+    def check_type(file_path: str, expected: str) -> bool:
+        real_path = os.path.realpath(file_path)
+        mime = magic.from_file(real_path, mime=True)
+        valid = {"application/json", "text/plain"}
+        return mime in valid

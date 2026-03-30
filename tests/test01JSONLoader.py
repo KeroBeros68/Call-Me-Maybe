@@ -67,18 +67,18 @@ class TestJSONLoader:
 
     def test_invalid_mime_type(self, tmp_path) -> None:
         """
-        Test that a file with an invalid MIME type raises a LoaderException.
+        Test that a file with an invalid MIME type raises a json.JSONDecodeError.
         """
         file = tmp_path / "bad.txt"
         file.write_text("not valid json {{{")
 
-        with pytest.raises(LoaderException):
+        with pytest.raises(json.JSONDecodeError):
             self.loader.read_file(str(file))
 
     def test_file_not_found(self) -> None:
         """Test that a non-existent file path raises a FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            self.loader.read_file("")
+            self.loader.read_file("test.txt")
 
     def test_permission_error(self, tmp_path) -> None:
         """

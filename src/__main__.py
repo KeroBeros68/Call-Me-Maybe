@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 
+from src.llm_custom import LLMCustom
 from src.utils import PausingArgumentParser
 
 from src.utils.FileLoader.JSONLoader import JSONLoader
@@ -38,17 +39,19 @@ def main() -> None:
     try:
         from .Controller import Controller, ControllerError
 
+        reader = JSONLoader(logger)
         controller = Controller(
             logger,
             PausingArgumentParser(PROG_NAME, PROG_DESCRIPTION, PROG_HELP),
-            JSONLoader(logger),
+            reader,
+            LLMCustom(reader=reader),
         )
         controller.process()
 
     except ControllerError:
         pass
     except Exception as e:
-        logger.error(e)
+        logger.error(f"ERROR: {e}")
     input("\n\nPress Enter to exit...")
     return
 

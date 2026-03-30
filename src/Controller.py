@@ -1,6 +1,7 @@
 import argparse
 from logging import Logger
 
+from llm_sdk.llm_sdk import Small_LLM_Model
 from src.models.FunctionDefinitionModel import FunctionDefinitionModel
 from src.models.InputModel import InputModel
 
@@ -40,6 +41,7 @@ class Controller:
         logger: Logger,
         parser: argparse.ArgumentParser,
         reader: BaseLoader,
+        llm_model: Small_LLM_Model,
     ) -> None:
         """
         Initializes the Controller with its required dependencies.
@@ -51,6 +53,7 @@ class Controller:
         self.logger: Logger = logger
         self.parser: argparse.ArgumentParser = parser
         self.reader: BaseLoader = reader
+        self.llm_model: Small_LLM_Model = llm_model
 
     def process(self) -> None:
         """
@@ -70,6 +73,20 @@ class Controller:
 
         self.logger.info(functions_definitions)
         self.logger.info(prompt_list)
+
+        for prompt in prompt_list:
+            print(self.llm_model.encode(prompt["prompt"]).tolist())
+            print(self.llm_model.cmm_encode(prompt["prompt"]))
+            print()
+
+        # for i in range(100):
+        #     self.logger.warning(text)
+        #     test1 = self.llm_model.encode(text).tolist()[0]
+        #     test2 = self.llm_model.get_logits_from_input_ids(test1)
+        #     text += self.llm_model.decode(
+        #         [range(len(test2))[test2.index(max(test2))]]
+        #     )
+        # self.logger.warning(text)
 
     def exit_program(self) -> None:
         """
