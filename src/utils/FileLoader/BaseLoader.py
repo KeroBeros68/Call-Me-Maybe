@@ -11,7 +11,7 @@ class LoaderException(Exception):
 
 class BaseLoader(ABC):
     def __init__(self, logger: Logger) -> None:
-        """Initializes the JSONLoader with a logger."""
+        """Initializes the BaseLoader with a logger."""
         self.logger = logger
 
     @abstractmethod

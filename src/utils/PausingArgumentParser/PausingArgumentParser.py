@@ -24,7 +24,7 @@ class PausingArgumentParser(argparse.ArgumentParser):
         self.add_argument(
             "-i",
             "--input",
-            default="data/input/functions_calling_tests.json",
+            default="data/input/function_calling_tests.json",
         )
         self.add_argument(
             "-o", "--output", default="data/input/output.json"

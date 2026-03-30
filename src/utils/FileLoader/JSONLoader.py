@@ -10,7 +10,7 @@ class JSONLoader(BaseLoader):
 
     def __init__(self, logger: Logger) -> None:
         """Initializes the JSONLoader with a logger."""
-        self.logger = logger
+        super().__init__(logger)
 
     def read_file(self, path: str) -> Any:
         """

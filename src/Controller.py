@@ -1,6 +1,9 @@
 import argparse
 from logging import Logger
 
+from src.models.FunctionDefinitionModel import FunctionDefinitionModel
+from src.models.InputModel import InputModel
+
 from .utils.FileLoader.BaseLoader import BaseLoader
 
 
@@ -29,9 +32,8 @@ class ControllerError(Exception):
         return f"[ControllerError] {self.message}"
 
 
-class Controller():
-    """
-    """
+class Controller:
+    """ """
 
     def __init__(
         self,
@@ -55,15 +57,19 @@ class Controller():
         Executes the main controller flow.
         """
         self.logger.info("Programm starting")
-        arg = self.parser.parse_args()
-        self.logger.info(f"Inline ARG: {arg}")
-        functions_definition = arg.functions_definition
-        input_files = arg.input
-        output_files = arg.output
-        print(functions_definition)
-        print(input_files)
-        print(output_files)
-        self.reader.read_file(arg.functions_definition)
+        cli_args = self.parser.parse_args()
+        self.logger.info(f"Inline ARG: {cli_args}")
+        #  output_files = cli_args.output
+        try:
+            functions_definitions: FunctionDefinitionModel = (
+                self.reader.read_file(cli_args.functions_definition)
+            )
+            prompt_list: InputModel = self.reader.read_file(cli_args.input)
+        except ValueError:
+            raise
+
+        self.logger.info(functions_definitions)
+        self.logger.info(prompt_list)
 
     def exit_program(self) -> None:
         """
