@@ -11,7 +11,7 @@ class TestParser:
     rejects missing required arguments, and recognizes all expected flags.
     """
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """
         Instantiate a fresh parser before each test to avoid side effects.
         """

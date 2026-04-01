@@ -1,9 +1,11 @@
 import json
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.utils.FileLoader.BaseLoader import BaseLoader
 from src.utils.FileLoader.JSONLoader import JSONLoader
 
 
@@ -20,13 +22,13 @@ class TestJSONLoader:
     reading and parsing logic.
     """
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """
         Instantiate a fresh JSONLoader with a mocked logger before each test.
         """
-        self.loader = JSONLoader(MagicMock())
+        self.loader: BaseLoader = JSONLoader(MagicMock())
 
-    def test_valid_json(self, tmp_path) -> None:
+    def test_valid_json(self, tmp_path: Path) -> None:
         """Test that a valid JSON object is correctly read and parsed."""
         file = tmp_path / "test.json"
         file.write_text(json.dumps({"key": "value"}))
@@ -35,7 +37,7 @@ class TestJSONLoader:
             result = self.loader.read_file(str(file))
         assert result == {"key": "value"}
 
-    def test_valid_empty_json(self, tmp_path) -> None:
+    def test_valid_empty_json(self, tmp_path: Path) -> None:
         """Test that an empty JSON object ({}) is correctly read and parsed."""
         file = tmp_path / "test.json"
         file.write_text(json.dumps({}))
@@ -44,7 +46,7 @@ class TestJSONLoader:
             result = self.loader.read_file(str(file))
         assert result == {}
 
-    def test_valid_empty_json2(self, tmp_path) -> None:
+    def test_valid_empty_json2(self, tmp_path: Path) -> None:
         """Test that an empty JSON array ([]) is correctly read and parsed."""
         file = tmp_path / "test.json"
         file.write_text(json.dumps([]))
@@ -53,7 +55,7 @@ class TestJSONLoader:
             result = self.loader.read_file(str(file))
         assert result == []
 
-    def test_invalid_json_content(self, tmp_path) -> None:
+    def test_invalid_json_content(self, tmp_path: Path) -> None:
         """
         Test that a file with malformed JSON content raises a JSONDecodeError.
         """
@@ -64,7 +66,7 @@ class TestJSONLoader:
             with pytest.raises(json.JSONDecodeError):
                 self.loader.read_file(str(file))
 
-    def test_invalid_mime_type(self, tmp_path) -> None:
+    def test_invalid_mime_type(self, tmp_path: Path) -> None:
         """
         Test that a file with an invalid MIME type raises a
         json.JSONDecodeError.
@@ -80,7 +82,7 @@ class TestJSONLoader:
         with pytest.raises(FileNotFoundError):
             self.loader.read_file("test.txt")
 
-    def test_permission_error(self, tmp_path) -> None:
+    def test_permission_error(self, tmp_path: Path) -> None:
         """
         Test that a file with no read permissions raises a PermissionError.
 

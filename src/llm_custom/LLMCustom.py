@@ -1,6 +1,8 @@
 import heapq
 from typing import Any
 
+import torch
+
 from llm_sdk.llm_sdk import Small_LLM_Model
 from src.utils.FileLoader.BaseLoader import BaseLoader
 
@@ -22,7 +24,7 @@ class LLMCustom(Small_LLM_Model):
         dtype: Any | None = None,
         trust_remote_code: bool = True,
         reader: BaseLoader,
-    ):
+    ) -> None:
         super().__init__(
             model_name,
             device=device,
@@ -34,6 +36,9 @@ class LLMCustom(Small_LLM_Model):
             self.get_path_to_vocab_file()
         )
         self.merge_file: list[str] = self._get_merge_file()
+        self.reversed_vocab: dict[int, str] = {
+            v: k for k, v in self.vocab_files.items()
+        }
 
     def _get_merge_file(self) -> list[str]:
         try:
@@ -50,7 +55,7 @@ class LLMCustom(Small_LLM_Model):
         tokens = text.split()
         return tokens
 
-    def _bpe_algorithm(self, word: str):
+    def _bpe_algorithm(self, word: str) -> list[int]:
         list_char = list(word)
         merge_priority: dict[str, int] = {
             pair: i for i, pair in enumerate(self.merge_file)
@@ -65,11 +70,14 @@ class LLMCustom(Small_LLM_Model):
                 break
             priority, i = heapq.heappop(queue_priority)
             merged = list_char[i] + list_char[i + 1]
-            list_char[i:i+2] = [merged]
+            list_char[i: i + 2] = [merged]
 
-        return [self.vocab_files.get(word, None) for word in list_char]
+        list_ids = [self.vocab_files.get(word, 0) for word in list_char]
+        if None in list_ids:
+            raise KeyError
+        return list_ids
 
-    def cmm_encode(self, text: str) -> list[list[int]]:
+    def encode(self, text: str) -> torch.Tensor:
         list_str = self._pre_split(text)
 
         list_ids = []
@@ -79,4 +87,15 @@ class LLMCustom(Small_LLM_Model):
                 list_ids.append(ids)
             else:
                 list_ids.extend(self._bpe_algorithm(word))
-        return [list_ids]
+        return torch.tensor([list_ids], dtype=torch.long, device=self._device)
+
+    def decode(self, list_ids: torch.Tensor | list[int]) -> str:
+        if isinstance(list_ids, torch.Tensor):
+            list_ids = list_ids.tolist()
+
+        tokens = [self.reversed_vocab[ids] for ids in list_ids]
+        result = "".join(tokens)
+        for c, replace_c in self.SPECIAL_CHAR_REPLACE.items():
+            if replace_c.strip() in result:
+                result = result.replace(replace_c.strip(), c)
+        return result

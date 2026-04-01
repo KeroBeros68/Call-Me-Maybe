@@ -1,6 +1,8 @@
 import argparse
 from logging import Logger
 
+from pydantic import model_validator
+
 from llm_sdk.llm_sdk import Small_LLM_Model
 from src.models.FunctionDefinitionModel import FunctionDefinitionModel
 from src.models.InputModel import InputModel
@@ -65,19 +67,27 @@ class Controller:
         #  output_files = cli_args.output
         try:
             functions_definitions: FunctionDefinitionModel = (
-                self.reader.read_file(cli_args.functions_definition)
+                FunctionDefinitionModel.model_validate(
+                    {
+                        "function_list": self.reader.read_file(
+                            cli_args.functions_definition
+                        )
+                    }
+                )
             )
-            prompt_list: InputModel = self.reader.read_file(cli_args.input)
+            prompt_list: InputModel = InputModel.model_validate(
+                {"input_list": self.reader.read_file(cli_args.input)}
+            )
         except ValueError:
             raise
 
-        self.logger.info(functions_definitions)
-        self.logger.info(prompt_list)
+        self.logger.info(functions_definitions.function_list)
+        self.logger.info(prompt_list.input_list)
 
-        for prompt in prompt_list:
-            print(self.llm_model.encode(prompt["prompt"]).tolist())
-            print(self.llm_model.cmm_encode(prompt["prompt"]))
-            print()
+        for prompt in prompt_list.input_list:
+            test = self.llm_model.encode(prompt.prompt).tolist()
+            print(test)
+            print(self.llm_model.decode(test[0]))
 
         # for i in range(100):
         #     self.logger.warning(text)
