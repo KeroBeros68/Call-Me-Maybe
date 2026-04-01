@@ -88,7 +88,9 @@ class Controller:
                 function_prompt, prompt.prompt
             )
 
-            input_ids: list[int] = self.llm_model.encode(final_prompt).tolist()[0]
+            input_ids: list[int] = self.llm_model.encode(
+                final_prompt
+            ).tolist()[0]
             generated: list[int] = []
 
             while True:
@@ -107,7 +109,9 @@ class Controller:
                 if decoded.strip().endswith("}"):
                     break
 
-            self.logger.warning(f"Final JSON: {self.llm_model.decode(generated)}")
+            self.logger.warning(
+                f"Final JSON: {self.llm_model.decode(generated)}"
+            )
 
     def function_prompt(self) -> str:
         result: str = ""
