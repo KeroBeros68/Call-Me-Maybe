@@ -1,8 +1,6 @@
 import argparse
 from logging import Logger
 
-from pydantic import model_validator
-
 from llm_sdk.llm_sdk import Small_LLM_Model
 from src.models.FunctionDefinitionModel import FunctionDefinitionModel
 from src.models.InputModel import InputModel
