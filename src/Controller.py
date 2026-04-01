@@ -64,7 +64,7 @@ class Controller:
         self.logger.info(f"Inline ARG: {cli_args}")
         #  output_files = cli_args.output
         try:
-            functions_definitions: FunctionDefinitionModel = (
+            self.functions_definitions: FunctionDefinitionModel = (
                 FunctionDefinitionModel.model_validate(
                     {
                         "function_list": self.reader.read_file(
@@ -73,19 +73,15 @@ class Controller:
                     }
                 )
             )
-            prompt_list: InputModel = InputModel.model_validate(
+            self.prompt_list: InputModel = InputModel.model_validate(
                 {"input_list": self.reader.read_file(cli_args.input)}
             )
         except ValueError:
             raise
 
-        self.logger.info(functions_definitions.function_list)
-        self.logger.info(prompt_list.input_list)
-
-        for prompt in prompt_list.input_list:
-            test = self.llm_model.encode(prompt.prompt).tolist()
-            print(test)
-            print(self.llm_model.decode(test[0]))
+        print(self.function_prompt())
+        self.logger.info(self.functions_definitions.function_list)
+        self.logger.info(self.prompt_list.input_list)
 
         # for i in range(100):
         #     self.logger.warning(text)
@@ -95,6 +91,16 @@ class Controller:
         #         [range(len(test2))[test2.index(max(test2))]]
         #     )
         # self.logger.warning(text)
+
+    def function_prompt(self) -> str:
+        #  fn_reverse_string(s: string): Reverse a string
+        result: str = ""
+        for func in self.functions_definitions.function_list:
+            function_string = (
+                f"{func.name}({func.parameters}: {func.description})"
+            )
+            result += "".join(function_string)
+        return result
 
     def exit_program(self) -> None:
         """
