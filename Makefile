@@ -146,17 +146,17 @@ test:
 # Run standard lint checks.
 lint:
 	$(ECHO) "$(CYAN)Running flake8...$(RESET)";
-	$(FLAKE8) --exclude=.venv;
+	$(FLAKE8) --exclude='.venv,llm_sdk'
 	$(ECHO) "$(CYAN)Running mypy...$(RESET)";
-	$(MYPY) --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude=.venv $(SRC_MYPY)
+	$(MYPY) --explicit-package-bases --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs --exclude '.venv' --exclude 'llm_sdk' $(SRC_MYPY)
 	$(MAKE) clean
 
 # Run stricter lint checks.
 lint-strict:
 	$(ECHO) "$(CYAN)Running flake8...$(RESET)";
-	$(FLAKE8) --exclude=.venv
+	$(FLAKE8) --exclude='.venv,llm_sdk'
 	$(ECHO) "$(CYAN)Running mypy...$(RESET)";
-	$(MYPY) --explicit-package-bases --strict --exclude=.venv $(SRC_MYPY)
+	$(MYPY) --explicit-package-bases --strict --exclude '.venv' --exclude 'llm_sdk' $(SRC_MYPY)
 	$(MAKE) clean
 
 

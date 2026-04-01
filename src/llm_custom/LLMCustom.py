@@ -1,3 +1,4 @@
+import heapq
 from typing import Any
 
 from llm_sdk.llm_sdk import Small_LLM_Model
@@ -5,6 +6,14 @@ from src.utils.FileLoader.BaseLoader import BaseLoader
 
 
 class LLMCustom(Small_LLM_Model):
+
+    SPECIAL_CHAR_REPLACE: dict[str, str] = {
+        " ": " \u0120",
+        "\t": " \u0109",
+        "\n": " \u010a",
+        "\r": " \u010d",
+    }
+
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-0.6B",
@@ -24,28 +33,41 @@ class LLMCustom(Small_LLM_Model):
         self.vocab_files: dict[str, int] = self.reader.read_file(
             self.get_path_to_vocab_file()
         )
+        self.merge_file: list[str] = self._get_merge_file()
+
+    def _get_merge_file(self) -> list[str]:
+        try:
+            with open(self.get_path_to_merges_file(), "r") as f:
+                return f.read().split("\n")
+        except FileNotFoundError:
+            raise
 
     def _pre_split(self, text: str) -> list[str]:
-        list_str = text.split()
+        for c, replace_c in self.SPECIAL_CHAR_REPLACE.items():
+            if c in text:
+                text = text.replace(c, replace_c)
 
-        result = []
-        for i, token in enumerate(list_str):
-            if token.endswith((".", "!", "?")):
-                word, punct = token[:-1], token[-1]
-                if word.isdigit():
-                    result.append("\u0120")
-                    for c in word:
-                        result.append(c)
-                    result.append(punct)
-                else:
-                    result.extend([word if i == 0 else "\u0120" + word, punct])
-            elif token.isdigit():
-                result.append("\u0120")
-                for c in token:
-                    result.append(c)
-            else:
-                result.append(token if i == 0 else "\u0120" + token)
-        return result
+        tokens = text.split()
+        return tokens
+
+    def _bpe_algorithm(self, word: str):
+        list_char = list(word)
+        merge_priority: dict[str, int] = {
+            pair: i for i, pair in enumerate(self.merge_file)
+        }
+        while True:
+            queue_priority: list[tuple[int, int]] = []
+            for i in range(len(list_char) - 1):
+                pair = list_char[i] + " " + list_char[i + 1]
+                if pair in merge_priority:
+                    heapq.heappush(queue_priority, (merge_priority[pair], i))
+            if not queue_priority:
+                break
+            priority, i = heapq.heappop(queue_priority)
+            merged = list_char[i] + list_char[i + 1]
+            list_char[i:i+2] = [merged]
+
+        return [self.vocab_files.get(word, None) for word in list_char]
 
     def cmm_encode(self, text: str) -> list[list[int]]:
         list_str = self._pre_split(text)
@@ -56,7 +78,5 @@ class LLMCustom(Small_LLM_Model):
             if ids:
                 list_ids.append(ids)
             else:
-                merge = self.get_path_to_merges_file()
-                print("choufleur")
-
+                list_ids.extend(self._bpe_algorithm(word))
         return [list_ids]
