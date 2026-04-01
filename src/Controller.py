@@ -79,28 +79,61 @@ class Controller:
         except ValueError:
             raise
 
-        print(self.function_prompt())
+        function_prompt = self.function_prompt()
         self.logger.info(self.functions_definitions.function_list)
         self.logger.info(self.prompt_list.input_list)
 
-        # for i in range(100):
-        #     self.logger.warning(text)
-        #     test1 = self.llm_model.encode(text).tolist()[0]
-        #     test2 = self.llm_model.get_logits_from_input_ids(test1)
-        #     text += self.llm_model.decode(
-        #         [range(len(test2))[test2.index(max(test2))]]
-        #     )
-        # self.logger.warning(text)
+        for prompt in self.prompt_list.input_list:
+            final_prompt = self.setup_final_prompt(
+                function_prompt, prompt.prompt
+            )
+
+            input_ids: list[int] = self.llm_model.encode(final_prompt).tolist()[0]
+            generated: list[int] = []
+
+            while True:
+                logits: list[float] = self.llm_model.get_logits_from_input_ids(
+                    input_ids
+                )
+
+                # TODO: appliquer les contraintes ici (masquer les tokens invalides)
+
+                next_token: int = logits.index(max(logits))
+                generated.append(next_token)
+                input_ids.append(next_token)
+
+                decoded = self.llm_model.decode(generated)
+
+                if decoded.strip().endswith("}"):
+                    break
+
+            self.logger.warning(f"Final JSON: {self.llm_model.decode(generated)}")
 
     def function_prompt(self) -> str:
-        #  fn_reverse_string(s: string): Reverse a string
         result: str = ""
         for func in self.functions_definitions.function_list:
+            params_string: str = ""
+
+            for params, params_type in func.parameters.items():
+                params_string += "".join(f"{params}: {params_type.type}, ")
+
             function_string = (
-                f"{func.name}({func.parameters}: {func.description})"
+                f" - {func.name}({params_string.strip(" ,")})"
+                f" -> {func.returns.type}: {func.description}\n"
             )
             result += "".join(function_string)
         return result
+
+    def setup_final_prompt(self, function_prompt, user_prompt) -> str:
+        final_prompt = (
+            "You are a function calling assistant.\n\n"
+            "Available functions:"
+            f"{function_prompt}\n\n"
+            f'User request: "{user_prompt}"\n\n'
+            'Reply with JSON: {"prompt": "<user request>", "name":'
+            ' "<function name>", "parameters": {...}}}'
+        )
+        return final_prompt
 
     def exit_program(self) -> None:
         """
