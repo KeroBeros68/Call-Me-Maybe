@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 from src.llm_custom.LLMCustom import LLMCustom
 
@@ -13,17 +13,11 @@ class TestEncodeDecode:
             ),
             patch.object(
                 LLMCustom,
-                "get_path_to_vocab_file",
-                return_value="/fake/vocab.json",
-            ),
-            patch.object(
-                LLMCustom,
-                "get_path_to_merges_file",
-                return_value="/fake/merges.txt",
-            ),
-            patch(
-                "builtins.open",
-                mock_open(read_data="#version: 0.2\nH ello\nĠ W"),
+                "_get_tokenizer_file",
+                return_value={
+                    "model": {"vocab": {}, "merges": []},
+                    "added_tokens": [],
+                },
             ),
         ):
 
@@ -37,6 +31,7 @@ class TestEncodeDecode:
             self.llm_model._tokenizer = MagicMock()
             self.llm_model.vocab_files = {"Hello": 9707, "ĠWorld": 1879}
             self.llm_model.merge_file = ["H ello", "Ġ W"]
+            self._extended_tokken = [{"content": "coucou", "id": 18000}]
             self.llm_model.reversed_vocab = {
                 v: k for k, v in self.llm_model.vocab_files.items()
             }

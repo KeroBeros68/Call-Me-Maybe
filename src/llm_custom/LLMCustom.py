@@ -1,4 +1,5 @@
 import heapq
+import json
 from typing import Any
 
 import torch
@@ -32,18 +33,37 @@ class LLMCustom(Small_LLM_Model):
             trust_remote_code=trust_remote_code,
         )
         self.reader: BaseLoader = reader
-        self.vocab_files: dict[str, int] = self.reader.read_file(
-            self.get_path_to_vocab_file()
+        self.tokenizer_file: dict[str, Any] = self._get_tokenizer_file()
+
+        _model = self.tokenizer_file.get("model")
+        self._extended_tokken: list[dict[str, Any]] = self.tokenizer_file.get(
+            "added_tokens", []
         )
-        self.merge_file: list[str] = self._get_merge_file()
+        self.vocab_files: dict[str, int] = (
+            _model["vocab"] if isinstance(_model, dict) else {}
+        )
+        _raw_merges: list = (
+            _model["merges"] if isinstance(_model, dict) else []
+        )
+        self.merge_file: list[str] = [
+            " ".join(m) if isinstance(m, list) else m for m in _raw_merges
+        ]
+
         self.reversed_vocab: dict[int, str] = {
             v: k for k, v in self.vocab_files.items()
         }
+        self._custom_cache: dict[str, list[int]] = {}
+        self.merge_priority: dict[str, int] = {
+            pair: i for i, pair in enumerate(self.merge_file)
+        }
 
-    def _get_merge_file(self) -> list[str]:
+        for token in self._extended_tokken:
+            self.vocab_files[token["content"]] = token["id"]
+
+    def _get_tokenizer_file(self) -> dict[str, Any]:
         try:
-            with open(self.get_path_to_merges_file(), "r") as f:
-                return f.read().split("\n")
+            with open(self.get_path_to_tokenizer_file(), "r") as f:
+                return json.load(f)
         except FileNotFoundError:
             raise
 
@@ -57,24 +77,24 @@ class LLMCustom(Small_LLM_Model):
 
     def _bpe_algorithm(self, word: str) -> list[int]:
         list_char = list(word)
-        merge_priority: dict[str, int] = {
-            pair: i for i, pair in enumerate(self.merge_file)
-        }
         while True:
             queue_priority: list[tuple[int, int]] = []
             for i in range(len(list_char) - 1):
                 pair = list_char[i] + " " + list_char[i + 1]
-                if pair in merge_priority:
-                    heapq.heappush(queue_priority, (merge_priority[pair], i))
+                if pair in self.merge_priority:
+                    heapq.heappush(
+                        queue_priority, (self.merge_priority[pair], i)
+                    )
             if not queue_priority:
                 break
             priority, i = heapq.heappop(queue_priority)
             merged = list_char[i] + list_char[i + 1]
             list_char[i: i + 2] = [merged]
 
-        list_ids = [self.vocab_files.get(word, 0) for word in list_char]
-        if None in list_ids:
+        list_ids = [self.vocab_files.get(char, -1) for char in list_char]
+        if -1 in list_ids:
             raise KeyError
+        self._custom_cache[word] = list_ids
         return list_ids
 
     def encode(self, text: str) -> torch.Tensor:
@@ -83,15 +103,17 @@ class LLMCustom(Small_LLM_Model):
         list_ids = []
         for word in list_str:
             ids = self.vocab_files.get(word, None)
-            if ids:
+            if ids is not None:
                 list_ids.append(ids)
+            elif word in self._custom_cache:
+                list_ids.extend(self._custom_cache[word])
             else:
                 list_ids.extend(self._bpe_algorithm(word))
         return torch.tensor([list_ids], dtype=torch.long, device=self._device)
 
     def decode(self, list_ids: torch.Tensor | list[int]) -> str:
         if isinstance(list_ids, torch.Tensor):
-            list_ids = list_ids.tolist()
+            list_ids = list_ids.flatten().tolist()
 
         tokens = [self.reversed_vocab[ids] for ids in list_ids]
         result = "".join(tokens)

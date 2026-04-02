@@ -79,39 +79,54 @@ class Controller:
         except ValueError:
             raise
 
-        function_prompt = self.function_prompt()
         self.logger.info(self.functions_definitions.function_list)
         self.logger.info(self.prompt_list.input_list)
+        print(self.llm_model.encode(self.prompt_list.input_list[0].prompt).tolist()[0])
+        # function_prompt = self.function_prompt()
+        # generate_state = "name"
+        # for prompt in self.prompt_list.input_list:
+        #     if generate_state == "name":
 
-        for prompt in self.prompt_list.input_list:
-            final_prompt = self.setup_final_prompt(
-                function_prompt, prompt.prompt
+        #         res = self.call_llm(
+        #             self.setup_final_prompt(
+        #                 function_prompt,
+        #                 prompt.prompt,
+        #                 "give me the good function name to use",
+        #             ),
+        #             generate_state,
+        #         )
+        #         print(res)
+
+    def call_llm(self, prompt: str, prefix: str):
+        prefix_ids: list[int] = self.llm_model.encode(prefix).tolist()[0]
+
+        input_ids: list[int] = (
+            self.llm_model.encode(prompt).tolist()[0] + prefix_ids
+        )
+        generated = []
+
+        while True:
+            logits: list[float] = self.llm_model.get_logits_from_input_ids(
+                input_ids
             )
 
-            input_ids: list[int] = self.llm_model.encode(
-                final_prompt
-            ).tolist()[0]
-            generated: list[int] = []
-
-            while True:
-                logits: list[float] = self.llm_model.get_logits_from_input_ids(
-                    input_ids
-                )
-
-                # TODO: appliquer les contraintes ici (masquer les tokens invalides)
-
-                next_token: int = logits.index(max(logits))
-                generated.append(next_token)
-                input_ids.append(next_token)
-
-                decoded = self.llm_model.decode(generated)
-
-                if decoded.strip().endswith("}"):
-                    break
-
-            self.logger.warning(
-                f"Final JSON: {self.llm_model.decode(generated)}"
+            valid_tokens = self.get_valid_tokens(
+                self.llm_model.decode(generated), prefix
             )
+
+            for i in range(len(logits)):
+                if i not in valid_tokens:
+                    logits[i] = float("-inf")
+
+            next_token: int = logits.index(max(logits))
+
+            generated.append(next_token)
+            input_ids.append(next_token)
+
+            decoded = self.llm_model.decode(generated)
+            print(decoded)
+            if decoded.strip().endswith("EOF"):
+                return decoded
 
     def function_prompt(self) -> str:
         result: str = ""
@@ -128,16 +143,43 @@ class Controller:
             result += "".join(function_string)
         return result
 
-    def setup_final_prompt(self, function_prompt, user_prompt) -> str:
+    def setup_final_prompt(self, function_prompt, user_prompt, reply) -> str:
         final_prompt = (
-            "You are a function calling assistant.\n\n"
             "Available functions:"
-            f"{function_prompt}\n\n"
-            f'User request: "{user_prompt}"\n\n'
-            'Reply with JSON: {"prompt": "<user request>", "name":'
-            ' "<function name>", "parameters": {...}}}'
+            f"{function_prompt} "
+            f'User request: "{user_prompt} "'
+            f"{reply} EOF"
         )
         return final_prompt
+
+    def get_valid_tokens(self, generated_text: str, prefix: str) -> set[int]:
+        if prefix == "name":
+            function_names = [
+                func.name for func in self.functions_definitions.function_list
+            ]
+            candidates = [
+                name
+                for name in function_names
+                if name.startswith(generated_text)
+            ]
+            if len(candidates) == 1 and generated_text == candidates[0]:
+                return {
+                    self.llm_model.encode(" EOF").tolist()[0],
+                }
+
+            next_chars = {
+                name[len(generated_text)]
+                for name in candidates
+                if len(name) > len(generated_text)
+            }
+
+            return {
+                self.llm_model.vocab_files[c]
+                for c in next_chars
+                if c in self.llm_model.vocab_files
+            }
+
+        return set(self.llm_model.vocab_files.values())
 
     def exit_program(self) -> None:
         """
