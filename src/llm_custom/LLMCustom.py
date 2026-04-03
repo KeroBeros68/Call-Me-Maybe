@@ -49,9 +49,6 @@ class LLMCustom(Small_LLM_Model):
             " ".join(m) if isinstance(m, list) else m for m in _raw_merges
         ]
 
-        self.reversed_vocab: dict[int, str] = {
-            v: k for k, v in self.vocab_files.items()
-        }
         self._custom_cache: dict[str, list[int]] = {}
         self.merge_priority: dict[str, int] = {
             pair: i for i, pair in enumerate(self.merge_file)
@@ -59,6 +56,10 @@ class LLMCustom(Small_LLM_Model):
 
         for token in self._extended_tokken:
             self.vocab_files[token["content"]] = token["id"]
+
+        self.reversed_vocab: dict[int, str] = {
+            v: k for k, v in self.vocab_files.items()
+        }
 
     def _get_tokenizer_file(self) -> dict[str, Any]:
         try:
@@ -114,6 +115,8 @@ class LLMCustom(Small_LLM_Model):
     def decode(self, list_ids: torch.Tensor | list[int]) -> str:
         if isinstance(list_ids, torch.Tensor):
             list_ids = list_ids.flatten().tolist()
+        elif list_ids and isinstance(list_ids[0], list):
+            list_ids = [item for sublist in list_ids for item in sublist]
 
         tokens = [self.reversed_vocab[ids] for ids in list_ids]
         result = "".join(tokens)

@@ -2,8 +2,8 @@ import argparse
 from logging import Logger
 
 from llm_sdk.llm_sdk import Small_LLM_Model
-from src.models.FunctionDefinitionModel import FunctionDefinitionModel
-from src.models.InputModel import InputModel
+from src.models.FunctionModel import FunctionModel
+from src.models.InputModel import PromptModel
 
 from .utils.FileLoader.BaseLoader import BaseLoader
 
@@ -64,41 +64,33 @@ class Controller:
         self.logger.info(f"Inline ARG: {cli_args}")
         #  output_files = cli_args.output
         try:
-            self.functions_definitions: FunctionDefinitionModel = (
-                FunctionDefinitionModel.model_validate(
-                    {
-                        "function_list": self.reader.read_file(
-                            cli_args.functions_definition
-                        )
-                    }
-                )
+            function_definitions = self.reader.read_file(
+                cli_args.functions_definition
             )
-            self.prompt_list: InputModel = InputModel.model_validate(
-                {"input_list": self.reader.read_file(cli_args.input)}
-            )
+            prompt_list = self.reader.read_file(cli_args.input)
+
+            self.functions_definitions: list[FunctionModel] = [
+                FunctionModel.model_validate(func)
+                for func in function_definitions
+            ]
+
+            self.prompt_list: list[PromptModel] = [
+                PromptModel.model_validate(prompt) for prompt in prompt_list
+            ]
         except ValueError:
             raise
 
-        self.logger.info(self.functions_definitions.function_list)
-        self.logger.info(self.prompt_list.input_list)
-        print(self.llm_model.encode(self.prompt_list.input_list[0].prompt).tolist()[0])
-        # function_prompt = self.function_prompt()
-        # generate_state = "name"
-        # for prompt in self.prompt_list.input_list:
-        #     if generate_state == "name":
+        self.logger.info(self.functions_definitions)
+        self.logger.info(self.prompt_list)
 
-        #         res = self.call_llm(
-        #             self.setup_final_prompt(
-        #                 function_prompt,
-        #                 prompt.prompt,
-        #                 "give me the good function name to use",
-        #             ),
-        #             generate_state,
-        #         )
-        #         print(res)
+        for prompt in self.prompt_list:
+            res = self.call_llm(
+                self.setup_final_prompt(self.functions_definitions, prompt)
+            )
+            print(res)
 
-    def call_llm(self, prompt: str, prefix: str):
-        prefix_ids: list[int] = self.llm_model.encode(prefix).tolist()[0]
+    def call_llm(self, prompt: str):
+        prefix_ids: list[int] = []
 
         input_ids: list[int] = (
             self.llm_model.encode(prompt).tolist()[0] + prefix_ids
@@ -109,14 +101,13 @@ class Controller:
             logits: list[float] = self.llm_model.get_logits_from_input_ids(
                 input_ids
             )
+            # valid_tokens = self.get_valid_tokens(
+            #     self.llm_model.decode(generated), prefix
+            # )
 
-            valid_tokens = self.get_valid_tokens(
-                self.llm_model.decode(generated), prefix
-            )
-
-            for i in range(len(logits)):
-                if i not in valid_tokens:
-                    logits[i] = float("-inf")
+            # for i in range(len(logits)):
+            #     if i not in valid_tokens:
+            #         logits[i] = float("-inf")
 
             next_token: int = logits.index(max(logits))
 
@@ -125,61 +116,62 @@ class Controller:
 
             decoded = self.llm_model.decode(generated)
             print(decoded)
-            if decoded.strip().endswith("EOF"):
+            if "</tool_call>" in decoded and not decoded.strip().endswith(
+                "<tool_call>"
+            ):
                 return decoded
 
-    def function_prompt(self) -> str:
-        result: str = ""
-        for func in self.functions_definitions.function_list:
-            params_string: str = ""
+    def setup_final_prompt(self, function_prompt, user_prompt) -> str:
+        final_prompt = f"""<|im_start|>system
+You are a function calling assistant. You MUST respond ONLY with a tool_call XML block. Never answer in plain text.
+/no_think
+# Tools
 
-            for params, params_type in func.parameters.items():
-                params_string += "".join(f"{params}: {params_type.type}, ")
+You may call one or more functions to assist with the user query.
 
-            function_string = (
-                f" - {func.name}({params_string.strip(" ,")})"
-                f" -> {func.returns.type}: {func.description}\n"
-            )
-            result += "".join(function_string)
-        return result
+You are provided with function signatures within <tools></tools> JSON format:
+<tools>
+{function_prompt}
+</tools>
 
-    def setup_final_prompt(self, function_prompt, user_prompt, reply) -> str:
-        final_prompt = (
-            "Available functions:"
-            f"{function_prompt} "
-            f'User request: "{user_prompt} "'
-            f"{reply} EOF"
-        )
+For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+<tool_call>
+{{"name": <function-name>, "arguments": <args-json-object>}}
+</tool_call><|im_end|>
+<|im_start|>user
+{user_prompt}<|im_end|>
+<|im_start|>assistant
+    """
         return final_prompt
 
-    def get_valid_tokens(self, generated_text: str, prefix: str) -> set[int]:
-        if prefix == "name":
-            function_names = [
-                func.name for func in self.functions_definitions.function_list
-            ]
-            candidates = [
-                name
-                for name in function_names
-                if name.startswith(generated_text)
-            ]
-            if len(candidates) == 1 and generated_text == candidates[0]:
-                return {
-                    self.llm_model.encode(" EOF").tolist()[0],
-                }
+    # def get_valid_tokens(self, generated_text: str, prefix: str) -> set[int]:
+    #     if prefix == "name":
+    #         function_names = [
+    #             func.name for func in self.functions_definitions.function_list
+    #         ]
+    #         candidates = [
+    #             name
+    #             for name in function_names
+    #             if name.startswith(generated_text)
+    #         ]
+    #         if len(candidates) == 1 and generated_text == candidates[0]:
+    #             return {
+    #                 self.llm_model.encode("<|endoftext|>").tolist()[0][0],
+    #             }
 
-            next_chars = {
-                name[len(generated_text)]
-                for name in candidates
-                if len(name) > len(generated_text)
-            }
+    #         next_chars = {
+    #             name[len(generated_text)]
+    #             for name in candidates
+    #             if len(name) > len(generated_text)
+    #         }
 
-            return {
-                self.llm_model.vocab_files[c]
-                for c in next_chars
-                if c in self.llm_model.vocab_files
-            }
+    #         return {
+    #             self.llm_model.vocab_files[c]
+    #             for c in next_chars
+    #             if c in self.llm_model.vocab_files
+    #         }
 
-        return set(self.llm_model.vocab_files.values())
+    #     return set(self.llm_model.vocab_files.values())
 
     def exit_program(self) -> None:
         """
