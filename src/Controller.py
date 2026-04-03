@@ -1,6 +1,8 @@
 import argparse
 from logging import Logger
 
+import json
+
 from llm_sdk.llm_sdk import Small_LLM_Model
 from src.models.FunctionModel import FunctionModel
 from src.models.InputModel import PromptModel
@@ -122,6 +124,12 @@ class Controller:
                 return decoded
 
     def setup_final_prompt(self, function_prompt, user_prompt) -> str:
+        try:
+            functions_as_dict = [f.model_dump() for f in function_prompt]
+        except AttributeError:
+            # Au cas où ce ne sont pas des modèles Pydantic mais des objets simples
+            functions_as_dict = [vars(f) for f in function_prompt]
+
         final_prompt = f"""<|im_start|>system
 You are a function calling assistant. You MUST respond ONLY with a tool_call XML block. Never answer in plain text.
 /no_think
@@ -131,7 +139,7 @@ You may call one or more functions to assist with the user query.
 
 You are provided with function signatures within <tools></tools> JSON format:
 <tools>
-{function_prompt}
+{json.dumps(functions_as_dict, indent=2)}
 </tools>
 
 For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
