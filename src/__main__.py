@@ -4,15 +4,11 @@ import subprocess
 import sys
 import time
 
-from src.llm_custom import LLMCustom
-from src.utils import PausingArgumentParser
-
-from src.utils.FileLoader.JSONLoader import JSONLoader
 from src.utils.RunSecurity import RunSecurity, RunEnvironmentError
 from src.utils.Logger.Logger import setup_logger
 
-TERMINAL: list[str] = ["gnome-terminal", "--"]
-# TERMINAL: list[str] = ["konsole", "-e"]
+# TERMINAL: list[str] = ["gnome-terminal", "--"]
+TERMINAL: list[str] = ["konsole", "-e"]
 
 PROG_NAME: str = "Call Me Maybe"
 PROG_DESCRIPTION: str = "What the program does"  # a faire
@@ -38,13 +34,20 @@ def main() -> None:
 
     try:
         from .Controller import Controller, ControllerError
+        from .ConstrainedGenerator import ConstrainedGenerator
+        from src.llm_custom import LLMCustom
+        from src.utils import PausingArgumentParser
+
+        from src.utils.FileLoader.JSONLoader import JSONLoader
 
         reader = JSONLoader(logger)
+        llm = LLMCustom(reader=reader)
         controller = Controller(
             logger,
             PausingArgumentParser(PROG_NAME, PROG_DESCRIPTION, PROG_HELP),
             reader,
-            LLMCustom(reader=reader),
+            llm,
+            ConstrainedGenerator(llm)
         )
         controller.process()
 

@@ -1,9 +1,8 @@
 import argparse
 from logging import Logger
 
-import json
-
-from llm_sdk.llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model
+from .ConstrainedGenerator import ConstrainedGenerator
 from src.models.FunctionModel import FunctionModel
 from src.models.InputModel import PromptModel
 
@@ -44,6 +43,7 @@ class Controller:
         parser: argparse.ArgumentParser,
         reader: BaseLoader,
         llm_model: Small_LLM_Model,
+        llm_manager: ConstrainedGenerator,
     ) -> None:
         """
         Initializes the Controller with its required dependencies.
@@ -56,6 +56,7 @@ class Controller:
         self.parser: argparse.ArgumentParser = parser
         self.reader: BaseLoader = reader
         self.llm_model: Small_LLM_Model = llm_model
+        self.llm_manager: ConstrainedGenerator = llm_manager
 
     def process(self) -> None:
         """
@@ -86,100 +87,10 @@ class Controller:
         self.logger.info(self.prompt_list)
 
         for prompt in self.prompt_list:
-            res = self.call_llm(
-                self.setup_final_prompt(self.functions_definitions, prompt)
+            res = self.llm_manager.call_llm(
+                self.llm_manager.setup_final_prompt(self.functions_definitions, prompt)
             )
             print(res)
-
-    def call_llm(self, prompt: str):
-        prefix_ids: list[int] = []
-
-        input_ids: list[int] = (
-            self.llm_model.encode(prompt).tolist()[0] + prefix_ids
-        )
-        generated = []
-
-        while True:
-            logits: list[float] = self.llm_model.get_logits_from_input_ids(
-                input_ids
-            )
-            # valid_tokens = self.get_valid_tokens(
-            #     self.llm_model.decode(generated), prefix
-            # )
-
-            # for i in range(len(logits)):
-            #     if i not in valid_tokens:
-            #         logits[i] = float("-inf")
-
-            next_token: int = logits.index(max(logits))
-
-            generated.append(next_token)
-            input_ids.append(next_token)
-
-            decoded = self.llm_model.decode(generated)
-            print(decoded)
-            if "</tool_call>" in decoded and not decoded.strip().endswith(
-                "<tool_call>"
-            ):
-                return decoded
-
-    def setup_final_prompt(self, function_prompt, user_prompt) -> str:
-        try:
-            functions_as_dict = [f.model_dump() for f in function_prompt]
-        except AttributeError:
-            # Au cas où ce ne sont pas des modèles Pydantic mais des objets simples
-            functions_as_dict = [vars(f) for f in function_prompt]
-
-        final_prompt = f"""<|im_start|>system
-You are a function calling assistant. You MUST respond ONLY with a tool_call XML block. Never answer in plain text.
-/no_think
-# Tools
-
-You may call one or more functions to assist with the user query.
-
-You are provided with function signatures within <tools></tools> JSON format:
-<tools>
-{json.dumps(functions_as_dict, indent=2)}
-</tools>
-
-For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
-<tool_call>
-{{"name": <function-name>, "arguments": <args-json-object>}}
-</tool_call><|im_end|>
-<|im_start|>user
-{user_prompt}<|im_end|>
-<|im_start|>assistant
-    """
-        return final_prompt
-
-    # def get_valid_tokens(self, generated_text: str, prefix: str) -> set[int]:
-    #     if prefix == "name":
-    #         function_names = [
-    #             func.name for func in self.functions_definitions.function_list
-    #         ]
-    #         candidates = [
-    #             name
-    #             for name in function_names
-    #             if name.startswith(generated_text)
-    #         ]
-    #         if len(candidates) == 1 and generated_text == candidates[0]:
-    #             return {
-    #                 self.llm_model.encode("<|endoftext|>").tolist()[0][0],
-    #             }
-
-    #         next_chars = {
-    #             name[len(generated_text)]
-    #             for name in candidates
-    #             if len(name) > len(generated_text)
-    #         }
-
-    #         return {
-    #             self.llm_model.vocab_files[c]
-    #             for c in next_chars
-    #             if c in self.llm_model.vocab_files
-    #         }
-
-    #     return set(self.llm_model.vocab_files.values())
 
     def exit_program(self) -> None:
         """

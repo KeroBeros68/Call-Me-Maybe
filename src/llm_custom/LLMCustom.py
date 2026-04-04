@@ -4,7 +4,7 @@ from typing import Any
 
 import torch
 
-from llm_sdk.llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model
 from src.utils.FileLoader.BaseLoader import BaseLoader
 
 
@@ -90,7 +90,7 @@ class LLMCustom(Small_LLM_Model):
                 break
             priority, i = heapq.heappop(queue_priority)
             merged = list_char[i] + list_char[i + 1]
-            list_char[i: i + 2] = [merged]
+            list_char[i : i + 2] = [merged]
 
         list_ids = [self.vocab_files.get(char, -1) for char in list_char]
         if -1 in list_ids:
