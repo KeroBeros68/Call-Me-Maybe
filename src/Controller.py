@@ -1,7 +1,7 @@
 import argparse
 from logging import Logger
 
-from llm_sdk import Small_LLM_Model
+from llm_sdk.llm_sdk import Small_LLM_Model
 from .ConstrainedGenerator import ConstrainedGenerator
 from src.models.FunctionModel import FunctionModel
 from src.models.InputModel import PromptModel
@@ -87,8 +87,11 @@ class Controller:
         self.logger.info(self.prompt_list)
 
         for prompt in self.prompt_list:
-            res = self.llm_manager.call_llm(self.functions_definitions, prompt)
-            print(res)
+            res = self.llm_manager.call_llm(
+                self.functions_definitions, prompt.prompt
+            )
+            print()
+            self.logger.info(res)
 
     def exit_program(self) -> None:
         """

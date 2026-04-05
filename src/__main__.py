@@ -7,8 +7,8 @@ import time
 from src.utils.RunSecurity import RunSecurity, RunEnvironmentError
 from src.utils.Logger.Logger import setup_logger
 
-# TERMINAL: list[str] = ["gnome-terminal", "--"]
-TERMINAL: list[str] = ["konsole", "-e"]
+TERMINAL: list[str] = ["gnome-terminal", "--"]
+# TERMINAL: list[str] = ["konsole", "-e"]
 
 PROG_NAME: str = "Call Me Maybe"
 PROG_DESCRIPTION: str = "What the program does"  # a faire
@@ -51,8 +51,6 @@ def main() -> None:
         )
         controller.process()
 
-    except ControllerError:
-        pass
     except Exception as e:
         logger.error(f"ERROR: {e}")
     input("\n\nPress Enter to exit...")

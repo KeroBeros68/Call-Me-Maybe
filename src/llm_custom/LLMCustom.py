@@ -4,7 +4,7 @@ from typing import Any
 
 import torch
 
-from llm_sdk import Small_LLM_Model
+from llm_sdk.llm_sdk import Small_LLM_Model
 from src.utils.FileLoader.BaseLoader import BaseLoader
 
 
@@ -99,17 +99,43 @@ class LLMCustom(Small_LLM_Model):
         return list_ids
 
     def encode(self, text: str) -> torch.Tensor:
-        list_str = self._pre_split(text)
+        special_tokens = sorted(
+            self._extended_tokken,
+            key=lambda t: len(t["content"]),
+            reverse=True
+        )
+
+        segments: list[tuple[str, bool]] = [(text, False)]
+
+        for token in special_tokens:
+            new_segments = []
+            for segment, is_special in segments:
+                if is_special:
+                    new_segments.append((segment, True))
+                    continue
+                parts = segment.split(token["content"])
+                for i, part in enumerate(parts):
+                    if part:
+                        new_segments.append((part, False))
+                    if i < len(parts) - 1:
+                        new_segments.append((token["content"], True))
+            segments = new_segments
 
         list_ids = []
-        for word in list_str:
-            ids = self.vocab_files.get(word, None)
-            if ids is not None:
-                list_ids.append(ids)
-            elif word in self._custom_cache:
-                list_ids.extend(self._custom_cache[word])
+        for segment, is_special in segments:
+            if is_special:
+                token_id = self.vocab_files.get(segment)
+                if token_id is not None:
+                    list_ids.append(token_id)
             else:
-                list_ids.extend(self._bpe_algorithm(word))
+                for word in self._pre_split(segment):
+                    ids = self.vocab_files.get(word)
+                    if ids is not None:
+                        list_ids.append(ids)
+                    elif word in self._custom_cache:
+                        list_ids.extend(self._custom_cache[word])
+                    else:
+                        list_ids.extend(self._bpe_algorithm(word))
         return torch.tensor([list_ids], dtype=torch.long, device=self._device)
 
     def decode(self, list_ids: torch.Tensor | list[int]) -> str:
