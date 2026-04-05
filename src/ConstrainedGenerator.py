@@ -7,21 +7,23 @@ class ConstrainedGenerator:
     def __init__(self, llm: LLMCustom):
         self.llm: LLMCustom = llm
 
-    def call_llm(self, prompt: str):
+    def call_llm(self, functions_definitions: str, prompt: str):
         prefix_ids: list[int] = []
 
-        input_ids: list[int] = self.llm.encode(prompt).tolist()[0] + prefix_ids
+        final_prompt = self.setup_final_prompt(functions_definitions, prompt)
+
+        input_ids: list[int] = (
+            self.llm.encode(final_prompt).tolist()[0] + prefix_ids
+        )
         generated = []
 
         while True:
             logits: list[float] = self.llm.get_logits_from_input_ids(input_ids)
-            # valid_tokens = self.get_valid_tokens(
-            #     self.llm.decode(generated), prefix
-            # )
+            valid_tokens = self.get_valid_tokens(self.llm.decode(generated), prompt)
 
-            # for i in range(len(logits)):
-            #     if i not in valid_tokens:
-            #         logits[i] = float("-inf")
+            for i in range(len(logits)):
+                if i not in valid_tokens:
+                    logits[i] = float("-inf")
 
             next_token: int = logits.index(max(logits))
 
@@ -56,7 +58,18 @@ You are provided with function signatures within <tools></tools> JSON format:
 
 For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
 <tool_call>
-{{"name": <function-name>, "arguments": <args-json-object>}}
+{{
+    prompt: <user_prompt>,
+    function: <function_name>,
+    arguments: {{
+        <type>: <value>,
+        ...
+    }},
+    return: <{{
+        <type>: <value>,
+        ...
+    }}
+}}
 </tool_call><|im_end|>
 <|im_start|>user
 {user_prompt}<|im_end|>
@@ -64,31 +77,38 @@ For each function call, return a json object with function name and arguments wi
     """
         return final_prompt
 
-    def get_valid_tokens(self) -> set[int]:
-        #     if prefix == "name":
-        #         function_names = [
-        #             func.name for func in self.functions_definitions.function_list
-        #         ]
-        #         candidates = [
-        #             name
-        #             for name in function_names
-        #             if name.startswith(generated_text)
-        #         ]
-        #         if len(candidates) == 1 and generated_text == candidates[0]:
-        #             return {
-        #                 self.llm_model.encode("<|endoftext|>").tolist()[0][0],
-        #             }
-
-        #         next_chars = {
-        #             name[len(generated_text)]
-        #             for name in candidates
-        #             if len(name) > len(generated_text)
-        #         }
-
-        #         return {
-        #             self.llm_model.vocab_files[c]
-        #             for c in next_chars
-        #             if c in self.llm_model.vocab_files
-        #         }
-
+    def get_valid_tokens(self, generated: str, prompt: str) -> set[int]:
+        step = 0
+        if not generated.startswith('{"prompt": "'):
+            return set(self.llm.encode('{"prompt": "').tolist()[0])
+        elif generated.startswith('{"prompt": "') and step == 0:
+            return set(self.llm.encode(f'{prompt}"').tolist()[0])
+        else:
+            step = 1
+        if step == 1 and ', "function":' not in generated:
+            return set(self.llm.encode(', "function":').tolist()[0])
+        else:
+            step = 2
+        if step == 2 and ', "arguments": {' not in generated:
+            return set(self.llm.encode(', "arguments": {').tolist()[0])
+        else:
+            step = 3
         return set(self.llm.vocab_files.values())
+
+
+"""
+
+{
+    prompt: <user_prompt>,
+    function: <function_name>,
+    arguments: {
+        <type>: <value>,
+        ...
+    },
+    return: <{
+        <type>: <value>,
+        ...
+    }
+}
+
+"""

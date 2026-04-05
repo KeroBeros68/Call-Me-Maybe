@@ -87,9 +87,7 @@ class Controller:
         self.logger.info(self.prompt_list)
 
         for prompt in self.prompt_list:
-            res = self.llm_manager.call_llm(
-                self.llm_manager.setup_final_prompt(self.functions_definitions, prompt)
-            )
+            res = self.llm_manager.call_llm(self.functions_definitions, prompt)
             print(res)
 
     def exit_program(self) -> None:
