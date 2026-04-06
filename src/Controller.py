@@ -87,6 +87,9 @@ class Controller:
         self.logger.info(self.prompt_list)
 
         for prompt in self.prompt_list:
+            if '"' in prompt.prompt:
+                prompt.prompt = prompt.prompt.replace('"', '\\"')
+                print(prompt.prompt)
             res = self.llm_manager.call_llm(
                 self.functions_definitions, prompt.prompt
             )
