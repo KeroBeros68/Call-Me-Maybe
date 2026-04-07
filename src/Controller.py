@@ -1,7 +1,9 @@
 import argparse
+import json
 from logging import Logger
 
 from llm_sdk.llm_sdk import Small_LLM_Model
+from src.models.OutputModel import OutputModel
 from .ConstrainedGenerator import ConstrainedGenerator
 from src.models.FunctionModel import FunctionModel
 from src.models.InputModel import PromptModel
@@ -85,16 +87,21 @@ class Controller:
 
         self.logger.info(self.functions_definitions)
         self.logger.info(self.prompt_list)
-
+        res: list[OutputModel] = []
         for prompt in self.prompt_list:
             if '"' in prompt.prompt:
                 prompt.prompt = prompt.prompt.replace('"', '\\"')
-                print(prompt.prompt)
-            res = self.llm_manager.call_llm(
+            res.append(self.llm_manager.call_llm(
                 self.functions_definitions, prompt.prompt
-            )
-            print()
+            ))
+
             self.logger.info(res)
+        print(res)
+        data_to_save = [obj.model_dump() for obj in res]
+
+        # 2. Enregistrer dans ton fichier JSON
+        with open(cli_args.output, "w", encoding="utf-8") as f:
+            json.dump(data_to_save, f, indent=4)
 
     def exit_program(self) -> None:
         """

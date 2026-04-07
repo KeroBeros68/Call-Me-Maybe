@@ -10,7 +10,6 @@ class ConstrainedGenerator:
         self._cache: dict[str, bool] = {}
 
     def call_llm(self, functions_definitions, prompt) -> OutputModel:
-        # Prompt minimal — contexte seulement
         final_prompt = self.setup_final_prompt(functions_definitions, prompt)
         input_ids = self.llm.encode(final_prompt).tolist()[0]
         generated = []
@@ -33,20 +32,20 @@ class ConstrainedGenerator:
             input_ids.append(next_token)
 
             decoded = self.llm.decode(generated)
-            print(decoded, end="\r", flush=True)
 
-            # Transitions d'état basées sur ce qui est déjà écrit
-            if step == 0 and f'"prompt": "{prompt}", "function": "' in decoded:
+            if step == 0 and f'"prompt": "{prompt}", "name": "' in decoded:
                 step = 1
             elif step == 1 and any(
                 fn.name in decoded for fn in functions_definitions
             ):
                 step = 2
-            elif step == 2 and '", "arguments": {' in decoded:
+            elif step == 2 and '", "parameters": {' in decoded:
                 step = 3
 
             try:
-                res: OutputModel = json.loads(decoded)
+                res: OutputModel = OutputModel.model_validate(
+                    json.loads(decoded)
+                )
                 return res
             except json.JSONDecodeError:
                 pass
@@ -73,7 +72,7 @@ You are a function calling assistant.
     def get_valid_tokens(self, generated, prompt, functions_definitions, step):
         if step == 0:
             target = self.llm.encode(
-                f'{{"prompt": "{prompt}", "function": "'
+                f'{{"prompt": "{prompt}", "name": "'
             ).tolist()[0]
             if len(generated) < len(target):
                 return {target[len(generated)]}
@@ -87,7 +86,7 @@ You are a function calling assistant.
             return set(valid_ids)
 
         elif step == 2:
-            target = self.llm.encode('", "arguments": {').tolist()[0]
+            target = self.llm.encode('", "parameters": {').tolist()[0]
             for length in range(len(target), 0, -1):
                 if generated[-length:] == target[:length]:
                     if length == len(target):
