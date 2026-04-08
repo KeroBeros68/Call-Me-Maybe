@@ -1,5 +1,6 @@
 import json
 from logging import Logger
+from pathlib import Path
 from typing import Any
 
 from .BaseLoader import BaseLoader, LoaderException
@@ -33,4 +34,17 @@ class JSONLoader(BaseLoader):
             with open(path) as f:
                 return json.load(f)
         except (FileNotFoundError, PermissionError, json.JSONDecodeError):
+            raise
+
+    def write_file(self, output_files: str, content: Any) -> None:
+        output_path = Path(output_files)
+
+        folder_parent = output_path.parent
+
+        folder_parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with open(output_files, "w", encoding="utf-8") as f:
+                json.dump(content, f, indent=4)
+        except Exception:
             raise

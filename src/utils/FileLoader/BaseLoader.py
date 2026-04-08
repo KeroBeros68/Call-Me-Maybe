@@ -19,6 +19,10 @@ class BaseLoader(ABC):
     def read_file(self, path: str) -> Any:
         pass
 
+    @abstractmethod
+    def write_file(self, output_files: str, content: Any) -> None:
+        pass
+
     @staticmethod
     def check_type(file_path: str, expected: str) -> bool:
         real_path = os.path.realpath(file_path)

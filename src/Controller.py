@@ -1,7 +1,5 @@
 import argparse
-import json
 from logging import Logger
-from pathlib import Path
 import time
 
 from llm_sdk.llm_sdk import Small_LLM_Model
@@ -69,7 +67,7 @@ class Controller:
         self.logger.info("Programm starting")
         cli_args = self.parser.parse_args()
         self.logger.info(f"Inline ARG: {cli_args}")
-        #  output_files = cli_args.output
+        output_files = cli_args.output
         try:
             function_files = self.reader.read_file(
                 cli_args.functions_definition
@@ -89,7 +87,9 @@ class Controller:
 
         self.logger.info(functions_definitions)
         self.logger.info(prompt_list)
+
         self.llm_manager.encode_function_name(functions_definitions)
+
         res: list[OutputModel] = []
 
         gen_start_time = time.time()
@@ -99,24 +99,17 @@ class Controller:
             ))
 
             self.logger.info(res)
-        print(time.time() - gen_start_time)
         prompt_time = (time.time() - gen_start_time)
+        self.process_time(prompt_time)
+        data_to_save = [obj.model_dump() for obj in res]
+        self.reader.write_file(output_files, data_to_save)
+
+    @staticmethod
+    def process_time(prompt_time: float) -> None:
         h = int(prompt_time // 3600)
         m = int((prompt_time % 3600) // 60)
         s = int(prompt_time % 60)
-
-        print(f"Temps d'exécution totale : {h:02d}:{m:02d}:{s:02d}")
-        print(res)
-        output_path = Path(cli_args.output)
-
-        folder_parent = output_path.parent
-
-        folder_parent.mkdir(parents=True, exist_ok=True)
-        data_to_save = [obj.model_dump() for obj in res]
-
-        # 2. Enregistrer dans ton fichier JSON
-        with open(cli_args.output, "w", encoding="utf-8") as f:
-            json.dump(data_to_save, f, indent=4)
+        print(f"\nTemps d'exécution totale : {h:02d}:{m:02d}:{s:02d}")
 
     def exit_program(self) -> None:
         """
