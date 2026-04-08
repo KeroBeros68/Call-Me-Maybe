@@ -94,10 +94,6 @@ class Controller:
 
         gen_start_time = time.time()
         for prompt in prompt_list:
-            if "\\" in prompt.prompt:
-                prompt.prompt = prompt.prompt.replace('\\', '\\\\')
-            if '"' in prompt.prompt:
-                prompt.prompt = prompt.prompt.replace('"', '\\"')
             res.append(self.llm_manager.call_llm(
                 functions_definitions, prompt.prompt
             ))
