@@ -1,6 +1,8 @@
 import argparse
 import json
 from logging import Logger
+from pathlib import Path
+import time
 
 from llm_sdk.llm_sdk import Small_LLM_Model
 from src.models.OutputModel import OutputModel
@@ -69,34 +71,51 @@ class Controller:
         self.logger.info(f"Inline ARG: {cli_args}")
         #  output_files = cli_args.output
         try:
-            function_definitions = self.reader.read_file(
+            function_files = self.reader.read_file(
                 cli_args.functions_definition
             )
-            prompt_list = self.reader.read_file(cli_args.input)
+            prompt_files = self.reader.read_file(cli_args.input)
 
-            self.functions_definitions: list[FunctionModel] = [
+            functions_definitions: list[FunctionModel] = [
                 FunctionModel.model_validate(func)
-                for func in function_definitions
+                for func in function_files
             ]
 
-            self.prompt_list: list[PromptModel] = [
-                PromptModel.model_validate(prompt) for prompt in prompt_list
+            prompt_list: list[PromptModel] = [
+                PromptModel.model_validate(prompt) for prompt in prompt_files
             ]
         except ValueError:
             raise
 
-        self.logger.info(self.functions_definitions)
-        self.logger.info(self.prompt_list)
+        self.logger.info(functions_definitions)
+        self.logger.info(prompt_list)
+        self.llm_manager.encode_function_name(functions_definitions)
         res: list[OutputModel] = []
-        for prompt in self.prompt_list:
+
+        gen_start_time = time.time()
+        for prompt in prompt_list:
+            if "\\" in prompt.prompt:
+                prompt.prompt = prompt.prompt.replace('\\', '\\\\')
             if '"' in prompt.prompt:
                 prompt.prompt = prompt.prompt.replace('"', '\\"')
             res.append(self.llm_manager.call_llm(
-                self.functions_definitions, prompt.prompt
+                functions_definitions, prompt.prompt
             ))
 
             self.logger.info(res)
+        print(time.time() - gen_start_time)
+        prompt_time = (time.time() - gen_start_time)
+        h = int(prompt_time // 3600)
+        m = int((prompt_time % 3600) // 60)
+        s = int(prompt_time % 60)
+
+        print(f"Temps d'exécution totale : {h:02d}:{m:02d}:{s:02d}")
         print(res)
+        output_path = Path(cli_args.output)
+
+        folder_parent = output_path.parent
+
+        folder_parent.mkdir(parents=True, exist_ok=True)
         data_to_save = [obj.model_dump() for obj in res]
 
         # 2. Enregistrer dans ton fichier JSON

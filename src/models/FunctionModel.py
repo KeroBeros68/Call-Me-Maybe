@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ArgModel(BaseModel):
-    type: Literal["string", "number"]
+    type: Literal["string", "number", "integer", "boolean"]
 
 
 class FunctionModel(BaseModel):
