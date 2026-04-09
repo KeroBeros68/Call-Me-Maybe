@@ -1,4 +1,3 @@
-import heapq
 import json
 from typing import Any
 
@@ -36,7 +35,7 @@ class LLMCustom(Small_LLM_Model):
         self.tokenizer_file: dict[str, Any] = self._get_tokenizer_file()
 
         _model = self.tokenizer_file.get("model")
-        self._extended_tokken: list[dict[str, Any]] = self.tokenizer_file.get(
+        self._special_tokens: list[dict[str, Any]] = self.tokenizer_file.get(
             "added_tokens", []
         )
         self.vocab_files: dict[str, int] = (
@@ -54,12 +53,21 @@ class LLMCustom(Small_LLM_Model):
             pair: i for i, pair in enumerate(self.merge_file)
         }
 
-        for token in self._extended_tokken:
+        for token in self._special_tokens:
             self.vocab_files[token["content"]] = token["id"]
 
         self.reversed_vocab: dict[int, str] = {
             v: k for k, v in self.vocab_files.items()
         }
+        self.sorted_special_tokens = sorted(
+            self._special_tokens, key=lambda t: len(t["content"]), reverse=True
+        )
+
+    @property
+    def vocab_size(self) -> int:
+        num_embeddings = self._model.get_input_embeddings().num_embeddings
+        assert isinstance(num_embeddings, int)
+        return num_embeddings
 
     def _get_tokenizer_file(self) -> dict[str, Any]:
         try:
@@ -78,19 +86,20 @@ class LLMCustom(Small_LLM_Model):
 
     def _bpe_algorithm(self, word: str) -> list[int]:
         list_char = list(word)
-        while True:
-            queue_priority: list[tuple[int, int]] = []
+        while len(list_char) > 1:
+            best = None
+            best_i = -1
             for i in range(len(list_char) - 1):
                 pair = list_char[i] + " " + list_char[i + 1]
-                if pair in self.merge_priority:
-                    heapq.heappush(
-                        queue_priority, (self.merge_priority[pair], i)
-                    )
-            if not queue_priority:
+                p = self.merge_priority.get(pair)
+                if p is not None and (best is None or p < best):
+                    best = p
+                    best_i = i
+            if best is None:
                 break
-            priority, i = heapq.heappop(queue_priority)
-            merged = list_char[i] + list_char[i + 1]
-            list_char[i: i + 2] = [merged]
+            list_char[best_i: best_i + 2] = [
+                list_char[best_i] + list_char[best_i + 1]
+            ]
 
         list_ids = [self.vocab_files.get(char, -1) for char in list_char]
         if -1 in list_ids:
@@ -99,15 +108,9 @@ class LLMCustom(Small_LLM_Model):
         return list_ids
 
     def encode(self, text: str) -> torch.Tensor:
-        special_tokens = sorted(
-            self._extended_tokken,
-            key=lambda t: len(t["content"]),
-            reverse=True
-        )
-
         segments: list[tuple[str, bool]] = [(text, False)]
 
-        for token in special_tokens:
+        for token in self.sorted_special_tokens:
             new_segments = []
             for segment, is_special in segments:
                 if is_special:
@@ -144,9 +147,9 @@ class LLMCustom(Small_LLM_Model):
         elif list_ids and isinstance(list_ids[0], list):
             list_ids = [item for sublist in list_ids for item in sublist]
 
-        tokens = [self.reversed_vocab[ids] for ids in list_ids]
-        result = "".join(tokens)
+        result = "".join(
+            self.reversed_vocab.get(ids, "<unk>") for ids in list_ids
+        )
         for c, replace_c in self.SPECIAL_CHAR_REPLACE.items():
-            if replace_c.strip() in result:
-                result = result.replace(replace_c.strip(), c)
+            result = result.replace(replace_c.strip(), c)
         return result

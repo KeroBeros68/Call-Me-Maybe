@@ -35,6 +35,9 @@ class ConstrainedGenerator:
         self.forbidden_int_token = set(self.llm.encode(".").tolist()[0])
         self.forbidden_float_token = set(self.llm.encode(",}").tolist()[0])
         self.forbidden_string_token = set(self.llm.encode('","').tolist()[0])
+        self.__mask_buffer: np.ndarray = np.full(
+            self.llm.vocab_size, -1e10, dtype=np.float32
+        )
 
     def __setup_final_prompt(self, functions_as_dict, user_prompt) -> str:
         return f"""<|im_start|>system
@@ -47,15 +50,18 @@ You are a function calling assistant.
 <|im_start|>assistant
 """
 
-    def encode_function_name(self, functions_definitions):
+    def encode_function_name(self, functions_definitions) -> None:
         for fn in functions_definitions:
             fn_target = self.llm.encode(fn.name).tolist()[0]
             self.encoded_func[fn.name] = fn_target
+        self._all_func_token_ids: set[int] = {
+            tid for ids in self.encoded_func.values() for tid in ids
+        }
 
     def _decode(self, generated):
         self.decoded += self.llm.decode(generated[self.offset:])
         self.offset = len(generated)
-        print(self.decoded)
+        print(f"{self.decoded.strip("\n")} \r", end="", flush=True)
 
     def call_llm(self, functions_definitions, prompt) -> OutputModel:
         self.decoded = ""
@@ -108,17 +114,15 @@ You are a function calling assistant.
         args = list(function.parameters.items())
 
         for idx, arg in enumerate(args):
+            target_arg_name = self.llm.encode(f'"{arg[0]}":').tolist()[0]
             if idx > len(args):
                 break
-            while not self.decoded.endswith(f'"{arg[0]}":'):
-                input_ids, generated = self._get_logits(
-                    self._get_arg_name(arg[0], generated), input_ids, generated
-                )
-                self._decode(generated)
+            input_ids.extend(target_arg_name)
+            generated.extend(target_arg_name)
             match arg[1].type:
                 case "integer":
                     input_ids, generated = self._get_arg_value_int(
-                        self.decoded, input_ids, generated
+                        input_ids, generated
                     )
                 case "number":
                     input_ids, generated = self._get_arg_value_float(
@@ -154,23 +158,23 @@ You are a function calling assistant.
             res: OutputModel = OutputModel.model_validate(
                 json.loads(sanitized)
             )
+            print()
             return res
         except json.JSONDecodeError:
             raise
 
-    def _get_logits(self, target, input_ids, generated):
+    def _get_logits(self, valid_tokens, input_ids, generated):
         logits_raw = self.llm.get_logits_from_input_ids(input_ids)
-        logits = np.array(logits_raw)
+        logits = np.array(logits_raw, dtype=np.float32)
 
-        valid_tokens = target
-
-        mask = np.full_like(logits, -1e10)
+        np.copyto(logits, self.__mask_buffer)
 
         valid_list = list(valid_tokens)
         if valid_list:
-            mask[valid_list] = 0
+            logits[valid_list] = np.array(logits_raw, dtype=np.float32)[
+                valid_list
+            ]
 
-        logits += mask
         next_token = int(logits.argmax())
 
         generated.append(next_token)
@@ -179,17 +183,7 @@ You are a function calling assistant.
         return input_ids, generated
 
     def _get_valid_function(self):
-        valid_ids = []
-        for func, encoded in self.encoded_func.items():
-            valid_ids.extend(encoded)
-        return set(valid_ids)
-
-    def _get_arg_name(self, arg_name, generated):
-        target = self.llm.encode(f'"{arg_name}":').tolist()[0]
-        for length in range(len(target), 0, -1):
-            if generated[-length:] == target[:length]:
-                return {target[length]}
-        return {target[0]}
+        return self._all_func_token_ids
 
     def _get_arg_value_float(self, arg_name, input_ids, generated):
         while True:
@@ -210,7 +204,7 @@ You are a function calling assistant.
             if self.decoded.endswith(",") or self.decoded.endswith("}"):
                 return input_ids, generated
 
-    def _get_arg_value_int(self, decoded, input_ids, generated):
+    def _get_arg_value_int(self, input_ids, generated):
         while True:
             input_ids, generated = self._get_logits(
                 set(self.__NUMERIC_TOKENS) - self.forbidden_int_token,
