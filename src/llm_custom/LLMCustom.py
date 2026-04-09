@@ -41,7 +41,7 @@ class LLMCustom(Small_LLM_Model):
         self.vocab_files: dict[str, int] = (
             _model["vocab"] if isinstance(_model, dict) else {}
         )
-        _raw_merges: list = (
+        _raw_merges: list[str] = (
             _model["merges"] if isinstance(_model, dict) else []
         )
         self.merge_file: list[str] = [
@@ -69,7 +69,7 @@ class LLMCustom(Small_LLM_Model):
         assert isinstance(num_embeddings, int)
         return num_embeddings
 
-    def _get_tokenizer_file(self) -> dict[str, Any]:
+    def _get_tokenizer_file(self) -> Any:
         try:
             with open(self.get_path_to_tokenizer_file(), "r") as f:
                 return json.load(f)

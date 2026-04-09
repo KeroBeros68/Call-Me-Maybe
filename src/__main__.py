@@ -20,7 +20,6 @@ def main() -> None:
     secure_env = RunSecurity()
     try:
         secure_env.check_process()
-        print("\n[OK] Environment secure. Launching GUI...")
         time.sleep(0.2)
     except RunEnvironmentError as e:
         logger.error(f"{e}")
@@ -33,7 +32,7 @@ def main() -> None:
         return
 
     try:
-        from .Controller import Controller, ControllerError
+        from .Controller import Controller
         from .ConstrainedGenerator import ConstrainedGenerator
         from src.llm_custom import LLMCustom
         from src.utils import PausingArgumentParser
