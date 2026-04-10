@@ -2,7 +2,7 @@ import argparse
 from logging import Logger
 import time
 
-from llm_sdk.llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 from src.models.OutputModel import OutputModel
 from .ConstrainedGenerator import ConstrainedGenerator
 from src.models.FunctionModel import FunctionModel
@@ -37,7 +37,11 @@ class ControllerError(Exception):
 
 
 class Controller:
-    """ """
+    """Orchestrates the end-to-end function-calling pipeline.
+
+    Reads input files, validates them into typed models, drives constrained
+    generation for each prompt, and persists the results to disk.
+    """
 
     def __init__(
         self,
@@ -48,14 +52,22 @@ class Controller:
         llm_manager: ConstrainedGenerator,
     ) -> None:
         """
-        Initializes the Controller with its required dependencies.
+        Initialize the Controller with its required dependencies.
 
         Args:
-            reader (FileLoader): Used to read JSON files from disk.
+            logger (Logger): Logger instance used for progress and error
+                reporting throughout the pipeline.
+            parser (argparse.ArgumentParser): Argument parser whose
+                ``parse_args()`` result supplies paths and model name.
+            reader (BaseLoader): File-loader used to read and write JSON
+                data from/to disk.
+            llm_model (Small_LLM_Model): The underlying language model.
+            llm_manager (ConstrainedGenerator): Wrapper that drives
+                constrained token-by-token generation.
         """
         super().__init__()
         self.logger: Logger = logger
-        self.parser: argparse.ArgumentParser = parser
+        self.cli_args = parser.parse_args()
         self.reader: BaseLoader = reader
         self.llm_model: Small_LLM_Model = llm_model
         self.llm_manager: ConstrainedGenerator = llm_manager
@@ -65,14 +77,13 @@ class Controller:
         Executes the main controller flow.
         """
         self.logger.info("Programm starting")
-        cli_args = self.parser.parse_args()
-        self.logger.info(f"Inline ARG: {cli_args}")
-        output_files = cli_args.output
+        self.logger.info(f"Inline ARG: {self.cli_args}")
+        output_files = self.cli_args.output
         try:
             function_files = self.reader.read_file(
-                cli_args.functions_definition
+                self.cli_args.functions_definition
             )
-            prompt_files = self.reader.read_file(cli_args.input)
+            prompt_files = self.reader.read_file(self.cli_args.input)
 
             functions_definitions: list[FunctionModel] = [
                 FunctionModel.model_validate(func)
@@ -106,17 +117,17 @@ class Controller:
 
     @staticmethod
     def process_time(prompt_time: float) -> None:
+        """Print the total generation time in HH:MM:SS format.
+
+        Args:
+            prompt_time (float): Elapsed time in seconds.
+        """
         h = int(prompt_time // 3600)
         m = int((prompt_time % 3600) // 60)
         s = int(prompt_time % 60)
         print(f"\nTemps d'exécution totale : {h:02d}:{m:02d}:{s:02d}")
 
     def exit_program(self) -> None:
-        """
-        Safely halts execution and exits the program.
-
-        Raises:
-            ControllerError: To break execution explicitly.
-        """
+        """Log a program-exit message and return control to the caller."""
         self.logger.info("Programm exit")
-        raise ControllerError("Programm exit")
+        return

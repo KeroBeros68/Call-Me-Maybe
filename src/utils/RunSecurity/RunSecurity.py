@@ -154,7 +154,10 @@ class RunSecurity:
             module_list: List of package names from pyproject.toml dependencies
 
         Returns:
-            bool: True if all dependencies loaded, False if any are missing
+            tuple[bool, int]: A pair of ``(all_loaded, lines_written)`` where
+                ``all_loaded`` is ``True`` if every dependency was found and
+                ``lines_written`` is the number of console lines printed
+                (used by the caller to clear the output).
         """
         print("Checking dependencies...\n")
         print("Required packages:")

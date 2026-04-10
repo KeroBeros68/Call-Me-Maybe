@@ -1,3 +1,10 @@
+"""Entry point for the Call Me Maybe application.
+
+Handles environment bootstrapping, argument parsing, and delegates
+execution to the Controller. When run directly (not as a child process),
+spawns a new terminal window and re-launches itself as a child.
+"""
+
 import logging
 import os
 import subprocess
@@ -16,6 +23,13 @@ PROG_HELP: str = "Text at the bottom of help"  # a faire
 
 
 def main() -> None:
+    """Run the main application flow.
+
+    Sets up the runtime security check, parses CLI arguments, loads the
+    LLM and its supporting components, then starts the generation loop
+    via the Controller.  On any unrecoverable error the user is prompted
+    to press Enter before the process exits.
+    """
     logger = logging.getLogger(PROG_NAME)
     secure_env = RunSecurity()
     try:
@@ -40,10 +54,12 @@ def main() -> None:
         from src.utils.FileLoader.JSONLoader import JSONLoader
 
         reader = JSONLoader(logger)
-        llm = LLMCustom(reader=reader)
+        parser = PausingArgumentParser(PROG_NAME, PROG_DESCRIPTION, PROG_HELP)
+        cli_arg = parser.parse_args()
+        llm = LLMCustom(reader=reader, model_name=cli_arg.model_name)
         controller = Controller(
             logger,
-            PausingArgumentParser(PROG_NAME, PROG_DESCRIPTION, PROG_HELP),
+            parser,
             reader,
             llm,
             ConstrainedGenerator(llm)

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.utils.FileLoader.BaseLoader import BaseLoader
+from src.utils.FileLoader.BaseLoader import BaseLoader, LoaderException
 from src.utils.FileLoader.JSONLoader import JSONLoader
 
 
@@ -74,13 +74,13 @@ class TestJSONLoader:
         file = tmp_path / "bad.txt"
         file.write_text("not valid json {{{")
 
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(LoaderException):
             self.loader.read_file(str(file))
 
     def test_file_not_found(self) -> None:
         """Test that a non-existent file path raises a FileNotFoundError."""
         with pytest.raises(FileNotFoundError):
-            self.loader.read_file("test.txt")
+            self.loader.read_file("test.json")
 
     def test_permission_error(self, tmp_path: Path) -> None:
         """

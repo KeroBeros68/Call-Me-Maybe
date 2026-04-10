@@ -8,12 +8,12 @@ class TestFunctionDefinitionModel:
         result = FunctionModel(
             name="fn_get_square_root",
             description="Calculate the square root of a number.",
-            parameters={"a": "number"},
-            returns="number",
+            parameters={"a": {"type": "number"}},
+            returns={"type": "number"},
         )
         assert result.model_dump() == {
             "name": "fn_get_square_root",
             "description": "Calculate the square root of a number.",
-            "parameters": {"a": "number"},
-            "returns": "number",
+            "parameters": {"a": {"type": "number"}},
+            "returns": {"type": "number"},
         }
